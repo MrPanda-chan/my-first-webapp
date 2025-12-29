@@ -10,3 +10,22 @@ li.item .del:hover { background: #ffe2e2; border-color: #ff9b9b; }
 li.empty { color: #666; font-style: italic; }
 form { display: flex; gap: .5rem; margin-bottom: 1rem; }
 form input { flex: 1; padding: .5rem .7rem; font-size: 1rem; }
+#todo-due { padding: .5rem .7rem; font-size: 1rem; }
+#todo-priority { padding: .5rem .7rem; font-size: 1rem; }
+
+.meta { display: flex; gap: .5rem; align-items: center; margin-left: .5rem; }
+.due { font-size: .9rem; color: #555; }
+.due.none { color: #999; }
+
+.prio { font-size: .9rem; padding: .15rem .5rem; border-radius: 999px; border: 1px solid #ddd; }
+.prio-high { font-weight: 700; }
+.prio-low { color: #666; }
+
+.meta { display: flex; gap: .6rem; align-items: center; margin-left: auto; margin-right: .5rem; }
+.due { font-size: .9rem; color: #555; }
+.prio { font-size: .85rem; padding: .15rem .55rem; border: 1px solid #ddd; border-radius: 999px; }
+.prio-high { font-weight: 700; }
+.prio-low { color: #666; }
+.left { display: flex; align-items: center; gap: .4rem; }
+.rank { font-weight: 700; width: 3rem; }
+.score { font-size: .85rem; color: #666; }
