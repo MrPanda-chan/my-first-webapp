@@ -3,25 +3,49 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>はじめてのWebアプリv2</title>
+  <title>はじめてのWebアプリ v3</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <main>
-    <h1>TODO</h1>
-    <form id="todo-form">
-      <input id="todo-input" type="text" placeholder="やること..." autocomplete="off" />
-      <input id="todo-due" type="date" />
-      <select id="todo-priority">
-        <option value="mid" selected>中</option>
-        <option value="high">高</option>
-        <option value="low">低</option>
-      </select>
-      <button type="submit">追加</button>
-    </form>    
-    <ul id="todo-list"></ul>
+  <main class="app">
+    <header class="app__header">
+      <h1 class="app__title">TODO</h1>
+      <p class="app__subtitle">重要度 × 期限で自動並び替え（ブラウザ保存）</p>
+    </header>
+
+    <section class="card">
+      <form id="todo-form" class="form">
+        <!-- 1段目：主入力 + 主アクション -->
+        <div class="form__row form__row--primary">
+          <label class="sr-only" for="todo-input">やること</label>
+          <input id="todo-input" class="input input--lg" type="text" placeholder="やることを入力…" autocomplete="off" />
+          <button type="submit" class="btn btn--primary">追加</button>
+        </div>
+
+        <!-- 2段目：詳細（期日・重要度） -->
+        <div class="form__row form__row--details">
+          <label class="field">
+            <span class="field__label">期日</span>
+            <input id="todo-due" class="input" type="date" />
+          </label>
+
+          <label class="field">
+            <span class="field__label">重要度</span>
+            <select id="todo-priority" class="input">
+              <option value="high">高</option>
+              <option value="mid" selected>中</option>
+              <option value="low">低</option>
+            </select>
+          </label>
+        </div>
+      </form>
+    </section>
+
+    <section class="listWrap">
+      <ul id="todo-list" class="list"></ul>
+    </section>
   </main>
-  <!-- (旧: カウンター / 要約プレースホルダ部は削除) -->
+
   <script src="main.js"></script>
 </body>
 </html>
