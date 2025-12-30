@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>はじめてのWebアプリ v3</title>
+  <title>TODO v4</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -15,29 +15,24 @@
 
     <section class="card">
       <form id="todo-form" class="form">
-        <!-- 1段目：主入力 + 主アクション -->
-        <div class="form__row form__row--primary">
-          <label class="sr-only" for="todo-input">やること</label>
-          <input id="todo-input" class="input input--lg" type="text" placeholder="やることを入力…" autocomplete="off" />
-          <button type="submit" class="btn btn--primary">追加</button>
-        </div>
+        <!-- 主入力 -->
+        <label class="sr-only" for="todo-input">やること</label>
+        <input id="todo-input" class="input input--lg" type="text" placeholder="やることを入力…" autocomplete="off" />
 
-        <!-- 2段目：詳細（期日・重要度） -->
-        <div class="form__row form__row--details">
-          <label class="field">
-            <span class="field__label">期日</span>
-            <input id="todo-due" class="input" type="date" />
-          </label>
+        <!-- 期日 -->
+        <label class="sr-only" for="todo-due">期日</label>
+        <input id="todo-due" class="input" type="date" />
 
-          <label class="field">
-            <span class="field__label">重要度</span>
-            <select id="todo-priority" class="input">
-              <option value="high">高</option>
-              <option value="mid" selected>中</option>
-              <option value="low">低</option>
-            </select>
-          </label>
-        </div>
+        <!-- 重要度 -->
+        <label class="sr-only" for="todo-priority">重要度</label>
+        <select id="todo-priority" class="input">
+          <option value="high">高</option>
+          <option value="mid" selected>中</option>
+          <option value="low">低</option>
+        </select>
+
+        <!-- 追加 -->
+        <button type="submit" class="btn btn--mono">追加</button>
       </form>
     </section>
 
