@@ -1,23 +1,29 @@
-// ===== DOM参照 =====
 const form = document.getElementById('todo-form');
 const input = document.getElementById('todo-input');
 const list = document.getElementById('todo-list');
 const dueInput = document.getElementById('todo-due');
 const priorityInput = document.getElementById('todo-priority');
 
-// ===== 状態 =====
 let todos = load();
+
+/* date: 空なら yyyy/mm/dd を“見えない”状態にする */
+function syncDueHasValue() {
+  if (dueInput.value) dueInput.classList.add('has-value');
+  else dueInput.classList.remove('has-value');
+}
+dueInput.addEventListener('change', syncDueHasValue);
+syncDueHasValue();
+
 render();
 
-// ===== 追加 =====
 form.addEventListener('submit', (e) => {
   e.preventDefault();
 
   const text = input.value.trim();
   if (!text) return;
 
-  const due = dueInput.value || null;          // 未入力は null
-  const priority = priorityInput.value || 'mid'; // "high" | "mid" | "low"
+  const due = dueInput.value || null;
+  const priority = priorityInput.value || 'mid';
 
   todos.push({
     id: crypto.randomUUID(),
@@ -30,12 +36,12 @@ form.addEventListener('submit', (e) => {
   input.value = '';
   dueInput.value = '';
   priorityInput.value = 'mid';
+  syncDueHasValue();
 
   persist();
   render();
 });
 
-// ===== 完了トグル =====
 function toggle(id) {
   const t = todos.find(x => x.id === id);
   if (!t) return;
@@ -44,21 +50,19 @@ function toggle(id) {
   render();
 }
 
-// ===== 削除 =====
 function removeTodo(id) {
   todos = todos.filter(x => x.id !== id);
   persist();
   render();
 }
 
-// ===== 描画 =====
 function render() {
   if (!todos.length) {
     list.innerHTML = '<li class="empty">まだ何もありません</li>';
     return;
   }
 
-  // スコア付け → doneは下へ → score降順
+  // doneは下、未doneはscore降順
   const ranked = todos
     .map(t => ({ ...t, score: calcScore(t) }))
     .sort((a, b) => {
@@ -66,21 +70,22 @@ function render() {
       return b.score - a.score;
     });
 
-  // rank番号は表示しない（並び順だけ反映）
   list.innerHTML = ranked.map((t) => `
     <li class="item ${t.done ? 'done' : ''}">
       <label class="left">
-        <input type="checkbox"
-          ${t.done ? 'checked' : ''}
-          data-action="toggle"
-          data-id="${t.id}">
+        <input type="checkbox" ${t.done ? 'checked' : ''} data-action="toggle" data-id="${t.id}">
         <span class="text">${escapeHtml(t.text)}</span>
       </label>
 
       <span class="meta">
-        <span class="due">${t.due ? `📅 ${t.due}` : '📅 なし'}</span>
-        <span class="prio prio-${t.priority || 'mid'}">${priorityLabel(t.priority)}</span>
-        <span class="score" aria-label="スコア">Score ${t.score}</span>
+        <span class="badge">
+          <span aria-hidden="true">📅</span>
+          <span>${t.due ? t.due : 'なし'}</span>
+        </span>
+
+        <span class="badge badge--prio">${priorityLabel(t.priority)}</span>
+
+        <span class="badge badge--score">Score ${t.score}</span>
       </span>
 
       <button class="del" data-action="del" data-id="${t.id}" aria-label="削除">×</button>
@@ -88,15 +93,7 @@ function render() {
   `).join('');
 }
 
-// ===== 重要度ラベル =====
-function priorityLabel(p) {
-  if (p === 'high') return '高';
-  if (p === 'low') return '低';
-  return '中';
-}
-
-// ===== イベント委譲 =====
-// 削除：click（ボタンだけ拾う）
+/* 削除（ボタンだけ拾う：誤爆防止） */
 list.addEventListener('click', (e) => {
   const btn = e.target.closest('button[data-action="del"]');
   if (!btn) return;
@@ -104,8 +101,7 @@ list.addEventListener('click', (e) => {
   if (id) removeTodo(id);
 });
 
-// 完了：change（checkboxだけ拾う）
-// ※ click側でtoggleしない → 二重実行を完全に防ぐ
+/* 完了（checkbox changeのみ） */
 list.addEventListener('change', (e) => {
   const el = e.target;
   if (!(el instanceof HTMLInputElement)) return;
@@ -114,7 +110,6 @@ list.addEventListener('change', (e) => {
   if (id) toggle(id);
 });
 
-// ===== 永続化 =====
 function persist() {
   localStorage.setItem('todos', JSON.stringify(todos));
 }
@@ -139,7 +134,6 @@ function load() {
   }
 }
 
-// ===== XSS対策 =====
 function escapeHtml(str) {
   return String(str)
     .replace(/&/g, '&amp;')
@@ -149,17 +143,22 @@ function escapeHtml(str) {
     .replace(/'/g,'&#39;');
 }
 
-// ===== スコア計算 =====
+function priorityLabel(p) {
+  if (p === 'high') return '高';
+  if (p === 'low') return '低';
+  return '中';
+}
+
+/* ===== scoring ===== */
 function priorityPoints(p) {
   if (p === 'high') return 60;
   if (p === 'low') return 10;
-  return 30; // mid
+  return 30;
 }
 
 function daysUntil(dueStr) {
   if (!dueStr) return null;
 
-  // 日付だけで比較（時刻ズレ防止）
   const [y, m, d] = dueStr.split('-').map(Number);
   const due = new Date(y, m - 1, d);
 

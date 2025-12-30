@@ -13,30 +13,37 @@
       <p class="app__subtitle">重要度 × 期限で自動並び替え（ブラウザ保存）</p>
     </header>
 
-    <section class="card">
-      <form id="todo-form" class="form">
-        <!-- 主入力 -->
-        <label class="sr-only" for="todo-input">やること</label>
-        <input id="todo-input" class="input input--lg" type="text" placeholder="やることを入力…" autocomplete="off" />
-
-        <!-- 期日 -->
+    <section class="panel">
+      <form id="todo-form" class="composer">
+        <!-- ラベルは見せない（sr-only） -->
+        <label class="sr-only" for="todo-input">内容</label>
         <label class="sr-only" for="todo-due">期日</label>
-        <input id="todo-due" class="input" type="date" />
-
-        <!-- 重要度 -->
         <label class="sr-only" for="todo-priority">重要度</label>
-        <select id="todo-priority" class="input">
-          <option value="high">高</option>
-          <option value="mid" selected>中</option>
-          <option value="low">低</option>
-        </select>
 
-        <!-- 追加 -->
-        <button type="submit" class="btn btn--mono">追加</button>
+        <div class="composer__top">
+          <input id="todo-input" class="input input--xl" type="text" placeholder="内容を入力…" autocomplete="off" />
+          <button type="submit" class="btn btn--mono">追加</button>
+        </div>
+
+        <div class="composer__bottom">
+          <div class="field">
+            <div class="field__label">期日</div>
+            <input id="todo-due" class="input input--pill" type="date" />
+          </div>
+
+          <div class="field">
+            <div class="field__label">重要度</div>
+            <select id="todo-priority" class="input input--pill">
+              <option value="high">高</option>
+              <option value="mid" selected>中</option>
+              <option value="low">低</option>
+            </select>
+          </div>
+        </div>
       </form>
     </section>
 
-    <section class="listWrap">
+    <section class="panel panel--list">
       <ul id="todo-list" class="list"></ul>
     </section>
   </main>
