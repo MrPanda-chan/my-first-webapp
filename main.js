@@ -1,10 +1,27 @@
+/* =========================
+ * TODO v4 (DB Sync via Supabase)
+ * - Quick: list_id方式（認証なし）
+ * - Future: Auth + RLS でSaaS化へ移行可能
+ * ========================= */
+
 const form = document.getElementById('todo-form');
 const input = document.getElementById('todo-input');
 const list = document.getElementById('todo-list');
 const dueInput = document.getElementById('todo-due');
 const priorityInput = document.getElementById('todo-priority');
 
-let todos = load();
+/* ===== Supabase Config（ここだけ埋める） ===== */
+const SUPABASE_URL = 'https://dogqjaalrcusqexgxwxs.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_rTBBna8DON_D4vpfpHGx1w_pXJLKoqG';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+/* ===== list_id（認証なしの境界） ===== */
+const LIST_ID_KEY = 'todo_list_id_v4';
+const listId = getOrCreateListId();
+
+/* ===== Local cache ===== */
+const LOCAL_TODOS_KEY = 'todos_v4_cache';
+let todos = loadLocal();
 
 /* date: 空なら yyyy/mm/dd を“見えない”状態にする */
 function syncDueHasValue() {
@@ -14,60 +31,164 @@ function syncDueHasValue() {
 dueInput.addEventListener('change', syncDueHasValue);
 syncDueHasValue();
 
-render();
+/* 起動：キャッシュ即表示 → DBで上書き */
+bootstrap();
 
-form.addEventListener('submit', (e) => {
+async function bootstrap() {
+  render(); // 体感速度
+  const remote = await dbSelectTodos();
+  if (remote) {
+    todos = remote;
+    persistLocal();
+    render();
+  }
+}
+
+/* ===== Submit: INSERT(=UPSERT) ===== */
+form.addEventListener('submit', async (e) => {
   e.preventDefault();
 
   const text = input.value.trim();
   if (!text) return;
 
-  const due = dueInput.value || null;
-  const priority = priorityInput.value || 'mid';
-
-  todos.push({
+  const todo = {
     id: crypto.randomUUID(),
+    list_id: listId,
     text,
-    due,
-    priority,
-    done: false
-  });
+    due: dueInput.value || null,
+    priority: normalizePriority(priorityInput.value),
+    done: false,
+  };
 
+  // 即反映
+  todos.push(todo);
+  clearComposer();
+  persistLocal();
+  render();
+
+  // DB保存
+  const ok = await dbUpsert(todo);
+  if (!ok) console.warn('[DB] upsert failed (kept local cache)');
+});
+
+function clearComposer() {
   input.value = '';
   dueInput.value = '';
   priorityInput.value = 'mid';
   syncDueHasValue();
+}
 
-  persist();
+/* ===== Delete: DELETE ===== */
+list.addEventListener('click', async (e) => {
+  const btn = e.target.closest('button[data-action="del"]');
+  if (!btn) return;
+
+  const id = btn.dataset.id;
+  if (!id) return;
+
+  // 即反映
+  todos = todos.filter(x => x.id !== id);
+  persistLocal();
   render();
+
+  await dbDelete(id);
 });
 
-function toggle(id) {
+/* ===== Toggle: UPDATE(=UPSERT) ===== */
+list.addEventListener('change', async (e) => {
+  const el = e.target;
+  if (!(el instanceof HTMLInputElement)) return;
+  if (el.dataset.action !== 'toggle') return;
+
+  const id = el.dataset.id;
+  if (!id) return;
+
   const t = todos.find(x => x.id === id);
   if (!t) return;
+
+  // 即反映
   t.done = !t.done;
-  persist();
+  persistLocal();
   render();
+
+  await dbUpsert(t);
+});
+
+/* =========================
+ * DB functions
+ * ========================= */
+async function dbSelectTodos() {
+  try {
+    const { data, error } = await sb
+      .from('todos')
+      .select('id, list_id, text, due, priority, done, created_at')
+      .eq('list_id', listId);
+
+    if (error) {
+      console.warn('[DB] select error:', error.message);
+      return null;
+    }
+    return Array.isArray(data) ? data.map(normalizeTodo) : [];
+  } catch (err) {
+    console.warn('[DB] select exception:', err);
+    return null;
+  }
 }
 
-function removeTodo(id) {
-  todos = todos.filter(x => x.id !== id);
-  persist();
-  render();
+async function dbUpsert(todo) {
+  try {
+    const payload = {
+      id: todo.id,
+      list_id: listId,
+      text: String(todo.text ?? ''),
+      due: todo.due || null,
+      priority: normalizePriority(todo.priority),
+      done: Boolean(todo.done),
+    };
+
+    const { error } = await sb
+      .from('todos')
+      .upsert(payload, { onConflict: 'id' });
+
+    if (error) {
+      console.warn('[DB] upsert error:', error.message);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.warn('[DB] upsert exception:', err);
+    return false;
+  }
 }
 
+async function dbDelete(id) {
+  try {
+    const { error } = await sb
+      .from('todos')
+      .delete()
+      .eq('id', id)
+      .eq('list_id', listId);
+
+    if (error) console.warn('[DB] delete error:', error.message);
+  } catch (err) {
+    console.warn('[DB] delete exception:', err);
+  }
+}
+
+/* =========================
+ * Render
+ * ========================= */
 function render() {
   if (!todos.length) {
     list.innerHTML = '<li class="empty">まだ何もありません</li>';
     return;
   }
 
-  // doneは下、未doneはscore降順
   const ranked = todos
     .map(t => ({ ...t, score: calcScore(t) }))
     .sort((a, b) => {
-      if (a.done !== b.done) return a.done ? 1 : -1;
-      return b.score - a.score;
+      if (a.done !== b.done) return a.done ? 1 : -1; // doneは下
+      return b.score - a.score; // score降順
     });
 
   list.innerHTML = ranked.map((t) => `
@@ -84,7 +205,6 @@ function render() {
         </span>
 
         <span class="badge badge--prio">${priorityLabel(t.priority)}</span>
-
         <span class="badge badge--score">Score ${t.score}</span>
       </span>
 
@@ -93,45 +213,49 @@ function render() {
   `).join('');
 }
 
-/* 削除（ボタンだけ拾う：誤爆防止） */
-list.addEventListener('click', (e) => {
-  const btn = e.target.closest('button[data-action="del"]');
-  if (!btn) return;
-  const id = btn.dataset.id;
-  if (id) removeTodo(id);
-});
-
-/* 完了（checkbox changeのみ） */
-list.addEventListener('change', (e) => {
-  const el = e.target;
-  if (!(el instanceof HTMLInputElement)) return;
-  if (el.dataset.action !== 'toggle') return;
-  const id = el.dataset.id;
-  if (id) toggle(id);
-});
-
-function persist() {
-  localStorage.setItem('todos', JSON.stringify(todos));
+/* =========================
+ * Local cache
+ * ========================= */
+function persistLocal() {
+  localStorage.setItem(LOCAL_TODOS_KEY, JSON.stringify(todos));
 }
 
-function load() {
+function loadLocal() {
   try {
-    const raw = localStorage.getItem('todos');
+    const raw = localStorage.getItem(LOCAL_TODOS_KEY);
     if (!raw) return [];
     const data = JSON.parse(raw);
-
-    return Array.isArray(data)
-      ? data.map(t => ({
-          id: t.id ?? crypto.randomUUID(),
-          text: String(t.text ?? ''),
-          done: Boolean(t.done),
-          due: t.due ?? null,
-          priority: (t.priority === 'high' || t.priority === 'mid' || t.priority === 'low') ? t.priority : 'mid',
-        }))
-      : [];
+    return Array.isArray(data) ? data.map(normalizeTodo) : [];
   } catch {
     return [];
   }
+}
+
+/* =========================
+ * Helpers
+ * ========================= */
+function getOrCreateListId() {
+  const v = localStorage.getItem(LIST_ID_KEY);
+  if (v) return v;
+  const id = crypto.randomUUID();
+  localStorage.setItem(LIST_ID_KEY, id);
+  return id;
+}
+
+function normalizeTodo(t) {
+  return {
+    id: t.id ?? crypto.randomUUID(),
+    list_id: t.list_id ?? listId,
+    text: String(t.text ?? ''),
+    due: t.due ?? null,
+    priority: normalizePriority(t.priority),
+    done: Boolean(t.done),
+  };
+}
+
+function normalizePriority(p) {
+  if (p === 'high' || p === 'mid' || p === 'low') return p;
+  return 'mid';
 }
 
 function escapeHtml(str) {
